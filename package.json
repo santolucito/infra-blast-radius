@@ -1,0 +1,86 @@
+{
+  "name": "infra-blast-radius",
+  "displayName": "Infrastructure Blast Radius",
+  "description": "Visualize and quantify the blast radius of CloudFormation / Terraform changes before deployment.",
+  "version": "0.1.0",
+  "publisher": "infra-blast-radius",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "bin": {
+    "blast-compare": "./dist/cli.js"
+  },
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "infra-blast-radius.visualize",
+        "title": "Visualize Blast Radius",
+        "category": "Blast Radius",
+        "icon": "$(type-hierarchy)"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "command": "infra-blast-radius.visualize",
+          "when": "resourceExtname == .tf || resourceExtname == .yaml || resourceExtname == .yml || resourceExtname == .json",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "infra-blast-radius.visualize",
+          "when": "resourceExtname == .tf || resourceExtname == .yaml || resourceExtname == .yml || resourceExtname == .json",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Infrastructure Blast Radius",
+      "properties": {
+        "infraBlastRadius.terraform.path": {
+          "type": "string",
+          "default": "terraform",
+          "description": "Path to the terraform executable."
+        },
+        "infraBlastRadius.terraform.autoRefreshOnSave": {
+          "type": "boolean",
+          "default": true,
+          "description": "Re-run `terraform graph` and refresh the structural graph when a .tf file in the workspace is saved."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p ./",
+    "build:test": "tsc -p ./tsconfig.test.json",
+    "test": "npm run build:test && mocha \"out/test/**/*.test.js\"",
+    "compare": "node dist/cli.js",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.52",
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "mocha": "^10.3.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "cytoscape": "^3.28.1",
+    "cytoscape-dagre": "^2.5.0",
+    "dagre": "^0.8.5",
+    "js-yaml": "^4.1.0"
+  }
+}

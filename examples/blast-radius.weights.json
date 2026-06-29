@@ -1,0 +1,13 @@
+{
+  "category": {
+    "breadth": 1,
+    "privilege_escalation": 80,
+    "credentials_exposure": 60,
+    "permissions_management": 50,
+    "data_exfiltration": 40,
+    "write": 10,
+    "service_wildcard": 100,
+    "tagging": 2,
+    "infrastructure_modification": 0
+  }
+}

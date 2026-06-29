@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="../media/styles.css" rel="stylesheet" />
+  <style>
+    /* Dark theme stand-ins for the VS Code CSS variables (preview only). */
+    :root {
+      --vscode-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --vscode-foreground: #cccccc;
+      --vscode-editor-background: #1e1e1e;
+      --vscode-sideBar-background: #252526;
+      --vscode-panel-border: #3c3c3c;
+      --vscode-button-foreground: #ffffff;
+      --vscode-button-background: #0e639c;
+      --vscode-button-hoverBackground: #1177bb;
+      --vscode-inputValidation-warningBackground: #5a4d00;
+      --vscode-inputValidation-warningBorder: #b89500;
+    }
+    #harness {
+      position: fixed; top: 6px; right: 10px; z-index: 1000;
+      font: 12px var(--vscode-font-family); color: #aaa;
+    }
+    #harness select { background:#333; color:#eee; border:1px solid #555; border-radius:3px; padding:2px 4px; }
+  </style>
+</head>
+<body>
+  <div id="harness">
+    dataset:
+    <select id="dataset">
+      <option value="cloudformation">CloudFormation — network.yaml</option>
+      <option value="terraform">Terraform — examples/terraform</option>
+    </select>
+  </div>
+
+  <div id="toolbar">
+    <span id="source-label"></span>
+    <span class="spacer"></span>
+    <label class="toggle">
+      <input type="checkbox" id="direction-toggle" />
+      <span id="direction-label">Dependents (what breaks)</span>
+    </label>
+    <button id="run-plan" title="Run a real plan / change set for accurate severity">Compute severity</button>
+    <button id="fit">Fit</button>
+  </div>
+  <div id="banner" class="hidden"></div>
+  <div id="cy"></div>
+  <div id="legend">
+    <span class="sev replace">replace / destroy</span>
+    <span class="sev update">update</span>
+    <span class="sev noop">no-op</span>
+    <span class="sev selected">selected</span>
+    <span id="severity-source"></span>
+  </div>
+
+  <script src="./data.js"></script>
+  <script>
+    // Minimal VS Code API stub. The real webview bundle calls acquireVsCodeApi()
+    // and talks to the host over postMessage; here we play the host.
+    let current = 'cloudformation';
+    function sendGraph() {
+      const ds = window.__GRAPHS[current];
+      window.postMessage({ v: 1, type: 'capabilities', payload: { canRunPlan: current === 'terraform' } }, '*');
+      window.postMessage({ v: 1, type: 'graph/loaded', payload: { graph: ds.graph, sourceLabel: ds.label } }, '*');
+    }
+    window.acquireVsCodeApi = function () {
+      return {
+        postMessage: function (msg) {
+          if (!msg) return;
+          if (msg.type === 'ready') sendGraph();
+          if (msg.type === 'command/run-plan') {
+            // Canned "real plan" result for the terraform dataset, to demo the
+            // plan-based coloring path. (vpc changed -> cascade.)
+            window.postMessage({ v: 1, type: 'severity/result', payload: {
+              source: 'plan',
+              severities: {
+                'aws_subnet.public_a': 'replace',
+                'aws_security_group.web': 'replace',
+                'aws_instance.web': 'update'
+              }
+            }}, '*');
+          }
+        },
+        getState: function () { return undefined; },
+        setState: function () {}
+      };
+    };
+    document.getElementById('dataset').addEventListener('change', function (e) {
+      current = e.target.value;
+      sendGraph();
+    });
+  </script>
+  <script src="../dist/webview.js"></script>
+</body>
+</html>

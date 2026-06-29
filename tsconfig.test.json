@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "out"
+  },
+  "include": [
+    "src/graph/**/*.ts",
+    "src/parsers/**/*.ts",
+    "src/severity/**/*.ts",
+    "src/compare/**/*.ts",
+    "test/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist", "src/extension.ts", "src/panel.ts", "src/webview/**"]
+}
