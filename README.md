@@ -53,18 +53,30 @@ Extension Host (Node)                         Webview (browser)
 Beyond visualizing one change, the tool compares the **security** blast radius of
 two alternative fixes and tells you which grants less access — see
 [`PLAN.md`](./PLAN.md). It does **not** reimplement security analysis; it
-orchestrates existing analyzers (P1: [Cloudsplaining](https://github.com/salesforce/cloudsplaining)),
-normalizes their output, diffs two git refs, and scores the result.
+orchestrates existing analyzers, normalizes their output, diffs two git refs, and
+scores the result. Analyzers (each optional, used when installed):
+
+- **[Cloudsplaining](https://github.com/salesforce/cloudsplaining)** — IAM action
+  risk classification (priv-esc, data-exfil, perms-mgmt, …), the `iam` channel.
+- **[Checkov](https://www.checkov.io/)** — IaC misconfiguration incl. network /
+  public exposure and encryption, the `network` channel.
+- **Granted-vs-used lens** — static AWS-SDK call extraction marks IAM grants the
+  linked application code never invokes (via a `blast-usage.json` manifest); these
+  re-weight the score so a fix that grants *unused* high-risk actions ranks worse.
+
+Findings are keyed by `source`+`channel`, so the analyzers merge into one
+comparable score without double-counting.
 
 ```bash
-# one-time: the offline IAM analyzer
+# one-time: the offline analyzers (both optional; Cloudsplaining is the core)
 pipx install cloudsplaining
+pipx install checkov          # adds the network/misconfig channel
 
 npm run compile
 node dist/cli.js \
   --repo /path/to/repo --base main \
   --a fix-broad --b fix-scoped \
-  --target iam/ \
+  [--target iam/] [--no-checkov] \
   [--weights examples/blast-radius.weights.json] [--max-delta 10] [--json]
 ```
 
