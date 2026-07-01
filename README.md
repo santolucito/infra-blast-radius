@@ -94,6 +94,20 @@ security score does not. Weights are tunable (`--weights`); `--max-delta N` is a
 opt-in CI gate. P1 extracts IAM policies from CloudFormation templates and bare
 `.json` policy files (Terraform `jsonencode`/policy-document HCL is a follow-up).
 
+### Interactive web UI
+
+A local browser front-end visualizes the examples interactively — an infra access
+graph plus a live comparison panel, with every number coming from a real CLI run
+(see [`web/README.md`](./web/README.md)):
+
+```bash
+npm run compile && npm run web    # -> http://localhost:4173
+```
+
+Worked examples live in [`examples/`](./examples): `tradeoff` (cross-channel, no
+obvious winner), `shared-role` (dedicated vs. shared role), and `shared-reach`
+(principal reach — the same grant costs N× on a role shared by N principals).
+
 ## Status / scope
 
 MVP. Plan-based severity is Terraform-only; CloudFormation severity (change sets)

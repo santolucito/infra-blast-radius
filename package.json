@@ -65,6 +65,7 @@
     "build:test": "tsc -p ./tsconfig.test.json",
     "test": "npm run build:test && mocha \"out/test/**/*.test.js\"",
     "compare": "node dist/cli.js",
+    "web": "node web/server.js",
     "vscode:prepublish": "node esbuild.js --production"
   },
   "devDependencies": {

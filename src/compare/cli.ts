@@ -168,13 +168,17 @@ async function main(): Promise<void> {
     const w = cmp.candidates.find((c) => c.scored.ref === cmp.winner)!;
     if (w.deltaVsBaseline > args.maxDelta) {
       console.error(`  ✗ gate: best option ${cmp.winner} adds ${w.deltaVsBaseline} > --max-delta ${args.maxDelta}`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
   }
-  process.exit(0);
+  // NB: do not call process.exit() here. With large --json output to a pipe (the
+  // web server reads stdout), process.exit() truncates before the buffer flushes.
+  // Setting exitCode and returning lets Node drain stdout, then exit naturally.
+  process.exitCode = 0;
 }
 
 main().catch((e) => {
   console.error(`blast-compare: ${(e as Error).message}`);
-  process.exit(10);
+  process.exitCode = 10;
 });
