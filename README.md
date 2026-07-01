@@ -1,5 +1,8 @@
 # Security Blast Radius
 
+[![CI](https://github.com/santolucito/infra-blast-radius/actions/workflows/ci.yml/badge.svg)](https://github.com/santolucito/infra-blast-radius/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 **Compare two infrastructure changes and see which one has the smaller _security_
 blast radius — and why.**
 
