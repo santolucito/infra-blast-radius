@@ -17,9 +17,10 @@
 Two realizations reframed the project:
 
 1. **The interesting question is comparative, not descriptive.** `terraform
-   plan`, `terraform graph`, and every viz tool (including the original "Blast
-   Radius") describe *one* state. None answer *"I have two ways to fix this —
-   which is safer?"* That needs a metric and an A/B diff, which nothing provides.
+   plan`, `terraform graph`, and every viz tool (including the original
+   [Blast Radius](https://github.com/28mm/blast-radius)) describe *one* state.
+   None answer *"I have two ways to fix this — which is safer?"* That needs a
+   metric and an A/B diff, which nothing provides.
 
 2. **The valuable sense of "blast radius" is security, not change** — and the
    security analysis already exists in mature tools. So the work is *combining

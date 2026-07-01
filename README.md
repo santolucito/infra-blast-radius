@@ -96,6 +96,21 @@ git refs: baseline, fix-A, fix-B
 - Scoring is `reach × sensitivity` with tunable weights; the verdict always shows
   the drivers, never just the number. Boundaries are documented in `PLAN.md` §8.
 
+## How this differs from other "blast radius" tools
+
+| Tool | What it shows | Answers |
+|---|---|---|
+| [Blast Radius (28mm)](https://github.com/28mm/blast-radius) · `terraform graph` | the dependency graph of **one** state — what resources connect | "what depends on this resource?" |
+| `terraform plan` | what a single change adds / updates / destroys | "what does this change touch?" |
+| **this tool** | who can reach/act on what, **diffed across two git refs** | "which of these two fixes grants less access, and why?" |
+
+The existing _Blast Radius_ is **descriptive** and **dependency**-oriented: it
+renders what depends on what in a single configuration (a _change_ blast radius).
+This tool is **comparative** and **security**-oriented: it scores who-can-reach-what
+across two refs and returns a ranked verdict with the drivers, not a picture. (The
+dependency visualizer below is in that same descriptive category — which is exactly
+why the product is the comparative security layer built on top of it.)
+
 ## Also in this repo: the dependency-radius visualizer
 
 The engine grew out of a VS Code extension that visualizes the _change_ blast
