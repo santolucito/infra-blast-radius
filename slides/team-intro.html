@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Comparative Security Blast Radius — team intro</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#11161c; --edge:#30363d;
+    --fg:#e6edf3; --dim:#8b949e; --accent:#f0883e; --accent2:#58a6ff;
+    --green:#3fb950; --red:#f85149; --amber:#d29922; --purple:#bc8cff;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--fg);font-family:var(--sans);overflow:hidden}
+  .deck{height:100vh;width:100vw;position:relative}
+  .slide{
+    position:absolute;inset:0;display:none;flex-direction:column;
+    justify-content:center;padding:5vh 8vw;animation:fade .25s ease}
+  .slide.active{display:flex}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  h1{font-size:min(6vw,68px);line-height:1.05;margin:0 0 .4em;letter-spacing:-.02em}
+  h2{font-size:min(3.6vw,40px);margin:0 0 .6em;letter-spacing:-.01em}
+  h2 .num{color:var(--accent);font-family:var(--mono);font-size:.55em;vertical-align:super;margin-right:.5em}
+  p,li{font-size:min(2.5vw,25px);line-height:1.5;color:var(--fg)}
+  .lead{font-size:min(3vw,30px);color:var(--dim);max-width:24ch}
+  .dim{color:var(--dim)}
+  .accent{color:var(--accent)} .a2{color:var(--accent2)} .green{color:var(--green)}
+  .red{color:var(--red)} .amber{color:var(--amber)} .purple{color:var(--purple)}
+  b,strong{color:#fff}
+  ul{margin:.3em 0}
+  li{margin:.45em 0}
+  code,.mono{font-family:var(--mono)}
+  .kicker{font-family:var(--mono);color:var(--accent);text-transform:uppercase;
+    letter-spacing:.18em;font-size:min(1.6vw,15px);margin-bottom:1.2em}
+  .term{background:var(--panel2);border:1px solid var(--edge);border-radius:10px;
+    padding:20px 24px;font-family:var(--mono);font-size:min(1.9vw,18px);line-height:1.55;
+    white-space:pre;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+  .card{background:var(--panel);border:1px solid var(--edge);border-radius:12px;padding:22px 26px}
+  .cols{display:flex;gap:28px;align-items:stretch}
+  .cols>*{flex:1;min-width:0}
+  table{border-collapse:collapse;width:100%;font-size:min(2.1vw,21px)}
+  td,th{border:1px solid var(--edge);padding:12px 16px;text-align:left;vertical-align:top}
+  th{background:var(--panel);color:var(--dim);font-weight:600}
+  .tag{font-family:var(--mono);font-size:.8em;padding:2px 8px;border-radius:20px;border:1px solid var(--edge)}
+  .flow{display:flex;align-items:center;gap:14px;flex-wrap:wrap;font-family:var(--mono);
+    font-size:min(1.9vw,19px)}
+  .box{background:var(--panel);border:1px solid var(--edge);border-radius:8px;padding:12px 16px}
+  .box.hi{border-color:var(--accent);color:var(--accent)}
+  .arrow{color:var(--dim)}
+  .foot{position:absolute;bottom:3vh;left:8vw;right:8vw;display:flex;justify-content:space-between;
+    align-items:center;font-family:var(--mono);font-size:min(1.5vw,14px);color:var(--dim)}
+  .nav{position:absolute;bottom:2.4vh;right:8vw;display:flex;gap:8px}
+  .nav button{background:var(--panel);color:var(--fg);border:1px solid var(--edge);
+    border-radius:6px;width:34px;height:30px;font-size:16px;cursor:pointer}
+  .nav button:hover{border-color:var(--accent);color:var(--accent)}
+  .bar{position:absolute;top:0;left:0;height:3px;background:var(--accent);transition:width .25s}
+  .big{font-size:min(9vw,120px);font-family:var(--mono);line-height:1;letter-spacing:-.03em}
+  .vs{color:var(--dim);font-size:.5em;margin:0 .3em}
+  .pill{display:inline-block;font-family:var(--mono);font-size:.85em;padding:3px 10px;border-radius:20px;
+    background:rgba(240,136,62,.12);border:1px solid var(--accent);color:var(--accent);margin-bottom:1em}
+  .small{font-size:min(1.9vw,19px)}
+  .hint{position:absolute;bottom:3vh;left:50%;transform:translateX(-50%);color:var(--dim);
+    font-size:13px;font-family:var(--mono);opacity:.6}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+  <div class="bar" id="bar"></div>
+
+  <!-- 1 -->
+  <section class="slide">
+    <div class="kicker">Infrastructure security tooling</div>
+    <h1>Which fix is <span class="accent">safer</span>?</h1>
+    <p class="lead">A tool that compares two infrastructure changes and tells you
+    which one grants less access — and <em>why</em>.</p>
+    <p class="dim small" style="margin-top:2em">Comparative Security Blast Radius &nbsp;·&nbsp; team intro</p>
+  </section>
+
+  <!-- 2 -->
+  <section class="slide">
+    <h2><span class="num">01</span>The question no existing tool answers</h2>
+    <p>You have a security finding — an over-permissioned role, an open port. You
+    write a fix. A teammate writes a <em>different</em> fix. In review, someone asks:</p>
+    <div class="card" style="margin:.6em 0;font-size:min(3vw,30px)">
+      “These both work… but which one is <span class="accent">safer</span>?”
+    </div>
+    <ul>
+      <li><code>terraform plan</code> tells you <b>what changes</b>, not how much risk it adds.</li>
+      <li>Security scanners rate <b>one</b> state at a time — they don't <b>compare</b> two.</li>
+      <li>So the call gets made by gut feel in a PR thread.</li>
+    </ul>
+  </section>
+
+  <!-- 3 -->
+  <section class="slide">
+    <h2><span class="num">02</span>Why <code>terraform plan</code> can't help</h2>
+    <p>Two fixes for the same problem. To <code>plan</code>, they look <span class="accent">identical</span>:</p>
+    <div class="term">  # module.job.aws_iam_role_policy.this will be updated in-place
+  ~ resource "aws_iam_role_policy" "this" {
+        name   = "job"
+      ~ policy = jsonencode(...)   <span class="dim"># &lt;- "one policy changed". same for both fixes.</span>
+    }
+
+<span class="dim">Plan: 0 to add, 1 to change, 0 to destroy.</span></div>
+    <p class="dim">"One IAM policy changed" is true of a one-line scope-down <em>and</em> of granting
+    admin. The <b>change</b> is the same size. The <b>blast radius</b> is not.</p>
+  </section>
+
+  <!-- 4 -->
+  <section class="slide">
+    <h2><span class="num">03</span>"Blast radius" — the security sense</h2>
+    <p class="lead" style="max-width:30ch">How much a change expands what an attacker could reach.</p>
+    <div class="cols" style="margin-top:1em">
+      <div class="card"><b class="a2">Identity reach</b><br><span class="small dim">
+        which <code>(action → resource)</code> a principal can now do — expanding wildcards,
+        managed policies, PassRole chains.</span></div>
+      <div class="card"><b class="a2">Network reach</b><br><span class="small dim">
+        which resources are reachable from untrusted origins — public IP + open
+        security group + route.</span></div>
+    </div>
+    <p style="margin-top:1em"><span class="pill">mostly static</span> &nbsp;computable from config —
+    no credentials, no <code>apply</code>. So it runs in CI and on two git branches.</p>
+  </section>
+
+  <!-- 5 -->
+  <section class="slide">
+    <h2><span class="num">04</span>What the tool does</h2>
+    <div class="card" style="font-size:min(3.2vw,32px);line-height:1.4">
+      Point it at <span class="accent">two git branches</span> (baseline + a fix, or fix-A vs fix-B).
+      It scores each branch's security blast radius, <span class="accent">diffs</span> them, and
+      prints which grants less access — <span class="accent">with the specific grants that drove the number.</span>
+    </div>
+    <div class="flow" style="margin-top:1.4em">
+      <span class="box">git: fix-A</span><span class="box">git: fix-B</span>
+      <span class="arrow">──▶</span><span class="box hi">blast-compare</span>
+      <span class="arrow">──▶</span><span class="box">verdict + reasons</span>
+    </div>
+    <p class="dim small" style="margin-top:1em">Two frontends: a CLI (for CI / PRs) and a VS Code view. Today's demo is the CLI.</p>
+  </section>
+
+  <!-- 6 -->
+  <section class="slide">
+    <h2><span class="num">05</span>The stance: we don't build the analysis</h2>
+    <p>Security analysis is a solved, mature space. We <b>orchestrate existing analyzers</b>,
+    normalize their output into one model, and own the <span class="accent">comparison</span>.</p>
+    <table style="margin-top:.4em">
+      <tr><th>Analyzer</th><th>Channel</th><th>What it sees</th></tr>
+      <tr><td class="mono">Cloudsplaining</td><td><span class="tag a2">iam</span></td>
+        <td>IAM action risk — priv-esc, data-exfil, perms-mgmt; wildcard/resource aware</td></tr>
+      <tr><td class="mono">Checkov</td><td><span class="tag amber">network</span></td>
+        <td>IaC misconfig — open SGs, public buckets, missing encryption</td></tr>
+      <tr><td class="mono">granted-vs-used</td><td><span class="tag purple">code</span></td>
+        <td>static SDK-call scan — grants the app code never actually invokes</td></tr>
+    </table>
+    <p class="dim small" style="margin-top:.8em">Each is optional; used when installed. New analyzers plug in behind one interface.</p>
+  </section>
+
+  <!-- 7 -->
+  <section class="slide">
+    <h2><span class="num">06</span>How it works</h2>
+    <div class="flow" style="line-height:2">
+      <span class="box">baseline / fix-A / fix-B</span>
+      <span class="arrow">──▶</span>
+      <span class="box">checkout each ref<br>in an isolated worktree</span>
+      <span class="arrow">──▶</span>
+      <span class="box hi">run analyzers</span>
+    </div>
+    <div class="flow" style="line-height:2;margin-top:14px">
+      <span class="box">normalize → one <code>Finding</code> model</span>
+      <span class="arrow">──▶</span>
+      <span class="box">diff each fix vs baseline</span>
+      <span class="arrow">──▶</span>
+      <span class="box">weighted score</span>
+      <span class="arrow">──▶</span>
+      <span class="box hi">ranked verdict</span>
+    </div>
+    <ul style="margin-top:1.2em">
+      <li>Findings are keyed by <code>source + channel</code> → tools <b>merge without double-counting</b>.</li>
+      <li>Weights live in a file — <b>tunable</b> to your threat model (you'll see why this matters).</li>
+    </ul>
+  </section>
+
+  <!-- 8 -->
+  <section class="slide">
+    <div class="kicker">The example · a real tradeoff</div>
+    <h2>A batch job that's over-permissioned</h2>
+    <p><b>Baseline</b> — everyone agrees this must change:</p>
+    <div class="cols">
+      <div class="term"><span class="dim">iam/policy.json</span>
+{ "Effect": "Allow",
+  "Action": <span class="red">"s3:*"</span>,
+  "Resource": <span class="red">"*"</span> }</div>
+      <div class="term"><span class="dim">infra/net.tf</span>
+security group "job":
+  ingress 443 from <span class="green">10.0.0.0/8</span>
+  <span class="dim"># private. locked down.</span>
+instance: public_ip = <span class="green">false</span></div>
+    </div>
+    <p class="dim" style="margin-top:1em">Broad IAM, but the network is tight. Two engineers each open a fix…</p>
+  </section>
+
+  <!-- 9 -->
+  <section class="slide">
+    <div class="kicker">The two fixes · side by side</div>
+    <h2>Both cut <code>s3:*</code> — so what does each <span class="accent">trade</span>?</h2>
+    <table>
+      <tr><th style="width:11%"></th>
+          <th>fix-A <span class="dim" style="font-weight:400">· "tight IAM"</span></th>
+          <th>fix-B <span class="dim" style="font-weight:400">· "keep network shut"</span></th></tr>
+      <tr>
+        <th class="a2">IAM</th>
+        <td><span class="green">s3:GetObject, s3:PutObject</span>
+            <span class="dim small">· on job-data/*</span><br>
+            <span class="dim small">2 scoped actions</span></td>
+        <td><span class="green">s3:GetObject, s3:PutObject</span> <span class="amber">＋</span><br>
+            <span class="amber">secretsmanager:GetSecretValue</span><br>
+            <span class="amber">dynamodb:GetItem, dynamodb:PutItem</span><br>
+            <span class="dim small">5 scoped actions — a <b>superset</b> of fix-A</span></td>
+      </tr>
+      <tr>
+        <th class="amber">Network</th>
+        <td><span class="red">opened: SG → 0.0.0.0/0, public IP</span><br>
+            <span class="dim small">reachable from the internet</span></td>
+        <td><span class="green">unchanged — stays private</span><br>
+            <span class="dim small">locked down, as before</span></td>
+      </tr>
+    </table>
+    <p style="margin-top:.9em"><b>Neither is strictly safer.</b> On IAM, fix-B <em>contains</em> fix-A and
+    adds more — it accepts <span class="amber">broader IAM</span> to keep the <span class="green">network shut</span>.
+    fix-A keeps <span class="green">IAM minimal</span> but <span class="red">opens the network</span>. That's the whole tradeoff.</p>
+  </section>
+
+  <!-- 10 -->
+  <section class="slide">
+    <div class="kicker">Gut check</div>
+    <h1>Which looks <span class="accent">safer</span>?</h1>
+    <p class="lead" style="max-width:36ch">Most reviewers pick <b class="green">fix-A</b> — its IAM is
+    tighter, and "open a security group to reach a license server" <em>sounds</em> routine.</p>
+    <p style="margin-top:1.1em">Hold that instinct. Now ask the tool. →</p>
+  </section>
+
+  <!-- 12 -->
+  <section class="slide">
+    <h2><span class="num">07</span>The verdict — default weights</h2>
+    <div class="term">$ blast-compare --base main --ref:A fix-A --ref:B fix-B
+<span class="dim">  analyzers: cloudsplaining, checkov</span>
+
+  A (fix-A)   score <span class="red">617</span>
+      • network_exposure: 5      <span class="dim">← the open security group</span>
+      • public_exposure: 1       <span class="dim">← the public IP</span>
+  B (fix-B)   score <span class="green">180</span>
+      • adds 3 scoped IAM actions
+
+  ✅ Smallest blast radius: <span class="green">B (fix-B)</span>  — <span class="accent">3.4× smaller than A</span></div>
+    <p style="margin-top:.8em">The tool <b>contradicts the eye</b>: the prettier diff is 3.4× worse.
+    One open security group outweighs three scoped grants.</p>
+  </section>
+
+  <!-- 13 -->
+  <section class="slide">
+    <h2><span class="num">08</span>It's a knob, not a fact</h2>
+    <p>The <em>entire</em> gap is the network channel. Your threat model says egress is behind
+    a firewall? Discount it:</p>
+    <div class="term">$ blast-compare … --weights <span class="a2">network-discounted.json</span>
+
+  A (fix-A)   score <span class="amber">24</span>
+  B (fix-B)   score <span class="green">15</span>
+  ✅ Smallest blast radius: <span class="green">B</span>  — <span class="accent">1.6× smaller</span>  <span class="dim">(near tie)</span></div>
+    <div class="cols" style="margin-top:1em">
+      <div class="card small"><b>Default</b><br><span class="big" style="font-size:min(5vw,52px)">3.4×</span></div>
+      <div class="card small"><b>Network discounted</b><br><span class="big" style="font-size:min(5vw,52px)">1.6×</span></div>
+    </div>
+    <p class="dim small" style="margin-top:.6em">There is no universal winner — there's a tradeoff axis, and you set where you sit on it.</p>
+  </section>
+
+  <!-- 14 -->
+  <section class="slide">
+    <h2><span class="num">09</span>Honest about what it can't do yet</h2>
+    <p>The tool has no <b>resource sensitivity</b>. It doesn't know that fix-B's secret is the
+    crown-jewel license key, or whether fix-A's open port reaches anything sensitive at all.</p>
+    <div class="card" style="margin:.6em 0">
+      For the deepest question — <span class="accent">"is holding <em>this</em> secret worse than
+      opening <em>that</em> port?"</span> — it makes the tradeoff <b>legible</b> and hands you a
+      <b>tunable knob</b>. It's decision <b>support</b>, not a decision <b>oracle</b>.
+    </div>
+    <p class="dim small">Resource-sensitivity weighting (secrets/KMS/prod-DB = high) is designed but not built.
+    That's the piece that would settle the hardest tradeoffs.</p>
+  </section>
+
+  <!-- 15 -->
+  <section class="slide">
+    <h2><span class="num">10</span>Why this is new</h2>
+    <table>
+      <tr><th>Tool</th><th>Can it say "fix-B is safer than fix-A, here's why"?</th></tr>
+      <tr><td class="mono">terraform plan</td><td class="dim">No — both are "1 policy changed"</td></tr>
+      <tr><td class="mono">grep / action count</td><td class="dim">No — same action <em>set</em>; the signal is scoping + channel</td></tr>
+      <tr><td class="mono">Cloudsplaining alone</td><td class="dim">No — blind to the network hole</td></tr>
+      <tr><td class="mono">Checkov alone</td><td class="dim">No — blind to IAM reach; doesn't rank two branches</td></tr>
+      <tr><td class="mono accent">blast-compare</td><td class="green">Yes — normalized, cross-channel, A/B verdict + drivers</td></tr>
+    </table>
+    <p class="dim small" style="margin-top:.8em">The moat isn't analysis depth — it's the comparison, the normalization across tools, and the tunable score.</p>
+  </section>
+
+  <!-- 16 -->
+  <section class="slide">
+    <div class="kicker">Try it · status · what's next</div>
+    <h2>Run this exact example</h2>
+    <div class="term">DEST=$(examples/tradeoff/build-repo.sh)
+node dist/cli.js --repo "$DEST" --base main --ref:A fix-A --ref:B fix-B</div>
+    <div class="cols" style="margin-top:1em">
+      <div class="card small"><b class="green">Done</b> — P1/P2<br><span class="dim">IAM + network + code analyzers,
+        normalized score, git-ref diff, CLI. 47 tests.</span></div>
+      <div class="card small"><b class="accent">Next</b><br><span class="dim">resource-sensitivity weighting ·
+        dedup across overlapping tools · VS Code side-by-side view · CI PR comment.</span></div>
+    </div>
+    <p class="dim small" style="margin-top:1em">github.com/santolucito/infra-blast-radius &nbsp;·&nbsp; PLAN.md</p>
+  </section>
+
+  <div class="foot"><span>Comparative Security Blast Radius</span><span id="count">1 / 15</span></div>
+  <div class="nav"><button id="prev">‹</button><button id="next">›</button></div>
+  <div class="hint">← → or space to navigate · F for fullscreen</div>
+</div>
+
+<script>
+  const slides=[...document.querySelectorAll('.slide')];
+  const bar=document.getElementById('bar'), count=document.getElementById('count');
+  let i=0;
+  function show(n){
+    i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach((s,k)=>s.classList.toggle('active',k===i));
+    bar.style.width=((i+1)/slides.length*100)+'%';
+    count.textContent=(i+1)+' / '+slides.length;
+    location.hash=i+1;
+  }
+  function key(e){
+    if(['ArrowRight','ArrowDown',' ','PageDown'].includes(e.key)){show(i+1);e.preventDefault();}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){show(i-1);e.preventDefault();}
+    else if(e.key==='Home'){show(0);} else if(e.key==='End'){show(slides.length-1);}
+    else if(e.key==='f'||e.key==='F'){document.documentElement.requestFullscreen?.();}
+  }
+  document.addEventListener('keydown',key);
+  document.getElementById('next').onclick=()=>show(i+1);
+  document.getElementById('prev').onclick=()=>show(i-1);
+  const start=parseInt(location.hash.slice(1));show(Number.isFinite(start)&&start?start-1:0);
+</script>
+</body>
+</html>

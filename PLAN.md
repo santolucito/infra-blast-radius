@@ -193,9 +193,22 @@ never just the number.
   3-branch repo: `fix-scoped` scores 1,188× smaller than `fix-broad`. 33 unit
   tests passing. (Terraform `jsonencode`/policy-document HCL extraction is the
   documented follow-up.)
-- **P2 — Second analyzer + aggregation.** Add **Checkov** (broad misconfig incl.
-  network exposure). Prove the normalizer merges heterogeneous outputs into one
-  score without double-counting.
+- **P2 — Second analyzer + aggregation + code lens. ✅ DONE.** Added the
+  **Checkov** adapter (broad misconfig incl. network/public exposure, on the
+  `network` channel) and a **granted-vs-used** lens (static AWS-SDK call
+  extraction → mark IAM grants the linked code never invokes). Both wire in
+  additively; findings are keyed by `source`+`channel` so heterogeneous outputs
+  merge into one score without double-counting, and `unused_grant` is a
+  weight-0 prioritization marker that re-weights existing findings via an
+  `UNUSED_MULTIPLIER` (2×) rather than adding a new surface. Proven on real
+  3-branch repos: (a) **cross-channel flip** — IAM-only ranks fix-A safest,
+  IAM+network ranks fix-B safest (1/3 → 511/93); (b) **integrated** run shows
+  Cloudsplaining + Checkov + the unused-grant lens all driving one verdict
+  (fix-B 24× smaller). Also adds **principal reach**: `reach × sensitivity` now
+  counts how many principals carry a policy (from the CFN attachment graph —
+  `Roles`/`Users`/`Groups`, `ManagedPolicyArns`), so the *same* grant on a role
+  shared by 6 services scores 6× a grant on a dedicated role
+  (`examples/shared-reach`). 52 unit tests passing.
 - **P3 — Webview comparison UX.** Side-by-side graphs, diff highlight (what fix B
   reaches that A doesn't), drill-down to the grants behind the score.
 - **P4 — CI integration.** GitHub Action: post the verdict as a PR comment;
@@ -219,6 +232,20 @@ Each phase is independently useful.
   real engineering risk sits — budget for it.
 - **Static ≠ runtime.** Offline analysis reads declared config, not deployed
   reality; over-approximation is intentional and labeled.
+- **Granted-vs-used is a prioritization signal, not a removal gate.** The SDK-call
+  extractor is heuristic (regex, not AST): a *missed* call under-counts "used" and
+  so *over-counts* "unused" — the unsafe direction for this lens. It therefore
+  re-weights (2×) rather than asserting "delete this," until extraction is
+  AST-based. It also checks action-level, not resource-level, least privilege.
+- **Code→principal→resource linking is unsolved in general.** The lens relies on an
+  explicit `blast-usage.json` manifest (plus best-effort SAM inference). Tracing
+  which principal runs which code, across managed policies / boundaries / assume-
+  role chains, is future work; the manifest makes the human assert the mapping.
+- **Principal reach is static-CFN only.** The attachment count comes from
+  CloudFormation (`Roles`/`Users`/`Groups`, `ManagedPolicyArns`) in the analyzed
+  templates. Cross-stack attachments, Terraform `aws_iam_role_policy_attachment`,
+  and runtime `AttachRolePolicy` are not yet resolved; unknown attachment defaults
+  to a reach of 1 (the safe, non-reducing direction).
 - **Opinionated weights.** Must be tunable and explainable; verdict shows drivers.
 - **AWS-first.** Other clouds deferred.
 - **Same-baseline guarantee.** Both fixes scored against the *same* baseline ref;

@@ -12,7 +12,14 @@ export type RiskCategory =
   | 'tagging'
   | 'infrastructure_modification'
   | 'service_wildcard'
-  | 'breadth';
+  | 'breadth'
+  // --- network / misconfiguration channel (Checkov, P2) ---
+  | 'network_exposure' // SG/NACL open to 0.0.0.0/0 — reachable from untrusted origins
+  | 'public_exposure' // resource made world-readable/-accessible (public S3, public RDS, public IP)
+  | 'encryption' // data at rest / in transit not encrypted
+  | 'misconfiguration' // generic failed IaC check, not otherwise classified
+  // --- granted-vs-used lens (P2): a prioritization signal, not a new surface ---
+  | 'unused_grant'; // granted but never invoked by the linked code
 
 /** One normalized unit of security exposure, from any analyzer. */
 export interface Finding {
@@ -23,6 +30,20 @@ export interface Finding {
   category: RiskCategory;
   /** Specific action/port/etc. when applicable; "" for aggregate findings. */
   detail: string;
+  /**
+   * Granted-vs-used lens (P2): set when this finding's action is granted but
+   * never invoked by the linked application code. NOT part of findingKey — the
+   * diff identity is unchanged; this only re-weights the score (see score.ts,
+   * UNUSED_MULTIPLIER) so a fix that grants unused high-risk actions ranks worse.
+   */
+  unused?: boolean;
+  /**
+   * Principal reach (P2): how many principals hold this policy. A grant on a role
+   * attached to N principals is reachable by all N, so its blast radius scales
+   * with N. Defaults to 1 (dedicated). NOT part of findingKey — it only
+   * re-weights the score (see score.ts). Set from the CFN attachment graph.
+   */
+  reachFactor?: number;
 }
 
 /** A stable key for set-diffing findings across refs. */
@@ -53,6 +74,17 @@ export const DEFAULT_WEIGHTS: Weights = {
     // Overlaps with write/permissions_management; kept informational to avoid
     // double-counting in the score (PLAN.md §8).
     infrastructure_modification: 0,
+    // Network / misconfiguration (Checkov). Calibrated to sit between IAM
+    // `write` (10) and `permissions_management` (50): a single internet-open SG
+    // or public bucket is comparable to a handful of risky IAM grants.
+    public_exposure: 90, // world-readable data / publicly reachable resource
+    network_exposure: 70, // SG/NACL open to 0.0.0.0/0
+    encryption: 15, // unencrypted at rest
+    misconfiguration: 5, // generic failed check
+    // The unused-grant lens adds no surface of its own (the action is already
+    // counted under `breadth` + its risk category); it re-weights those via
+    // UNUSED_MULTIPLIER instead. Kept at 0 to avoid double-counting (PLAN.md §8).
+    unused_grant: 0,
   },
 };
 

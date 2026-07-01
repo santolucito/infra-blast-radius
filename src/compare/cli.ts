@@ -7,6 +7,8 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { CloudsplainingAdapter } from './adapters/cloudsplaining';
+import { CheckovAdapter } from './adapters/checkov';
+import { AnalyzerAdapter } from './adapters/types';
 import { compareRefs } from './orchestrator';
 import { resolveWeights } from './score';
 import { Comparison, Weights } from './types';
@@ -20,10 +22,11 @@ interface Args {
   weights?: string;
   json: boolean;
   maxDelta?: number;
+  noCheckov: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { repo: '.', candidates: [], json: false };
+  const args: Args = { repo: '.', candidates: [], json: false, noCheckov: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -34,6 +37,7 @@ function parseArgs(argv: string[]): Args {
       case '--python': args.python = next(); break;
       case '--weights': args.weights = next(); break;
       case '--max-delta': args.maxDelta = Number(next()); break;
+      case '--no-checkov': args.noCheckov = true; break;
       case '--json': args.json = true; break;
       case '--a': args.candidates.push({ name: 'A', ref: next() }); break;
       case '--b': args.candidates.push({ name: 'B', ref: next() }); break;
@@ -79,13 +83,23 @@ function printHuman(cmp: Comparison, names: Map<string, string>): void {
     console.log(`  ${label(c.scored.ref)}`);
     console.log(`    score ${c.scored.score}  (${sign}${c.deltaVsBaseline} vs baseline)`);
     const addTally = tallyCategories(c.diff.added);
+    const unused = addTally['unused_grant'] ?? 0;
     const interesting = Object.entries(addTally)
-      .filter(([k]) => k !== 'breadth')
+      .filter(([k]) => k !== 'breadth' && k !== 'unused_grant')
       .sort((a, b) => b[1] - a[1]);
     if (c.diff.added.length) {
       const breadth = addTally['breadth'] ?? 0;
-      console.log(`    adds ${c.diff.added.length} findings (${breadth} new allowed actions)`);
+      // unused_grant entries are weight-0 explanatory markers, not new surface.
+      const realCount = c.diff.added.length - unused;
+      console.log(`    adds ${realCount} findings (${breadth} new allowed actions)`);
       for (const [cat, n] of interesting) console.log(`      • ${cat}: ${n}`);
+      if (unused) console.log(`      • unused grants (granted, never called by linked code): ${unused}`);
+      const reaches = [...new Set(
+        c.diff.added.map((f) => f.reachFactor).filter((n): n is number => !!n && n > 1)
+      )].sort((a, b) => a - b);
+      if (reaches.length) {
+        console.log(`      • shared-role reach: ×${reaches.join(', ×')} (grant lands on multiple principals)`);
+      }
     }
     if (c.diff.removed.length) console.log(`    removes ${c.diff.removed.length} findings`);
     console.log('');
@@ -114,19 +128,33 @@ async function main(): Promise<void> {
   const names = new Map<string, string>();
   for (const c of args.candidates) names.set(c.ref, c.name);
 
-  const adapter = new CloudsplainingAdapter({ python: args.python, shimPath: resolveShim() });
-  if (!(await adapter.available())) {
+  // Cloudsplaining (IAM) is the core analyzer and is required. Checkov
+  // (network/misconfig) is additive and optional — included when installed
+  // unless --no-checkov. The orchestrator filters to available adapters too.
+  const adapters: AnalyzerAdapter[] = [];
+  const cloudsplaining = new CloudsplainingAdapter({ python: args.python, shimPath: resolveShim() });
+  if (!(await cloudsplaining.available())) {
     console.error('cloudsplaining not available. Install with: pipx install cloudsplaining');
     console.error('(or pass --python <interpreter that can import cloudsplaining>)');
     process.exit(3);
   }
+  adapters.push(cloudsplaining);
+
+  if (!args.noCheckov) {
+    const checkov = new CheckovAdapter();
+    if (await checkov.available()) adapters.push(checkov);
+    else if (!args.json) {
+      console.error('  (note: checkov not found — IAM-only analysis. `pipx install checkov` for network/misconfig.)');
+    }
+  }
+  if (!args.json) console.error(`  analyzers: ${adapters.map((a) => a.id).join(', ')}`);
 
   const cmp = await compareRefs({
     repoDir: repo,
     baseRef: args.base,
     candidateRefs: args.candidates.map((c) => c.ref),
     target: args.target,
-    adapters: [adapter],
+    adapters,
     weights: loadWeights(args.weights),
   });
 

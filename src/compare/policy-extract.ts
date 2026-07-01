@@ -15,6 +15,12 @@ export interface ExtractedPolicy {
   /** The IAM policy document (Version/Statement JSON). */
   document: unknown;
   sourceFile: string;
+  /**
+   * How many principals (roles/users/groups) carry this policy, from the CFN
+   * attachment graph. Undefined for bare policy files (treated as 1 downstream).
+   * A grant on a policy attached to N principals is reachable by all N.
+   */
+  principalCount?: number;
 }
 
 const CFN_EXTS = new Set(['.yaml', '.yml', '.json']);
@@ -38,6 +44,48 @@ function walk(dir: string, out: string[]): void {
   }
 }
 
+/** Resolve a CFN reference to a local logical id: {Ref:X} / {Fn::GetAtt:[X,..]} /
+ * "X.Arn" string form; a plain string (literal name/arn) is returned as-is. */
+function principalRef(item: unknown): string | null {
+  if (typeof item === 'string') return item.includes('.') ? item.split('.')[0] : item;
+  if (item && typeof item === 'object') {
+    const o = item as Record<string, any>;
+    if (typeof o.Ref === 'string') return o.Ref;
+    const ga = o['Fn::GetAtt'];
+    if (Array.isArray(ga) && typeof ga[0] === 'string') return ga[0];
+    if (typeof ga === 'string') return ga.split('.')[0];
+  }
+  return null;
+}
+
+/** Count distinct principals attached to a managed/customer policy `logicalId`:
+ * its own Roles/Users/Groups lists, plus any Role/User/Group whose
+ * ManagedPolicyArns references it. */
+function countManagedPrincipals(
+  logicalId: string,
+  resources: Record<string, any>
+): number {
+  const principals = new Set<string>();
+  const self = resources[logicalId]?.Properties ?? {};
+  for (const key of ['Roles', 'Users', 'Groups']) {
+    const arr = self[key];
+    if (Array.isArray(arr)) {
+      for (const item of arr) {
+        const id = principalRef(item);
+        if (id) principals.add(id);
+      }
+    }
+  }
+  for (const [rid, rbody] of Object.entries(resources)) {
+    if (!/^AWS::IAM::(Role|User|Group)$/.test(rbody?.Type ?? '')) continue;
+    const arns = rbody?.Properties?.ManagedPolicyArns;
+    if (Array.isArray(arns) && arns.some((a) => principalRef(a) === logicalId)) {
+      principals.add(rid);
+    }
+  }
+  return principals.size;
+}
+
 function extractFromCfn(doc: unknown, relFile: string, out: ExtractedPolicy[]): void {
   if (!doc || typeof doc !== 'object') return;
   const resources = (doc as Record<string, any>).Resources;
@@ -54,10 +102,12 @@ function extractFromCfn(doc: unknown, relFile: string, out: ExtractedPolicy[]): 
         policyId: `${relFile}#${logicalId}`,
         document: props.PolicyDocument,
         sourceFile: relFile,
+        principalCount: countManagedPrincipals(logicalId, resources),
       });
     }
 
-    // AWS::IAM::Role/User/Group -> Properties.Policies[].PolicyDocument (inline)
+    // AWS::IAM::Role/User/Group -> Properties.Policies[].PolicyDocument (inline).
+    // An inline policy is carried by exactly one principal (this resource).
     if (Array.isArray(props.Policies)) {
       props.Policies.forEach((p: any, i: number) => {
         if (isPolicyDocument(p?.PolicyDocument)) {
@@ -66,6 +116,7 @@ function extractFromCfn(doc: unknown, relFile: string, out: ExtractedPolicy[]): 
             policyId: `${relFile}#${logicalId}/${name}`,
             document: p.PolicyDocument,
             sourceFile: relFile,
+            principalCount: 1,
           });
         }
       });

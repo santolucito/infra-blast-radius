@@ -1,0 +1,8 @@
+{
+  "category": {
+    "network_exposure": 2,
+    "public_exposure": 2,
+    "encryption": 2,
+    "misconfiguration": 1
+  }
+}

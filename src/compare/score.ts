@@ -8,11 +8,26 @@ export interface Scored {
   findingCount: number;
 }
 
+/**
+ * Granted-vs-used penalty (P2). A finding whose action is granted but never
+ * invoked by the linked code has its weight multiplied by this factor — so a
+ * fix that grants unused, high-risk actions ranks worse than one whose grants
+ * are all exercised. It is a re-weighting of EXISTING findings, not a new
+ * additive surface, which keeps the score from double-counting (PLAN.md §8).
+ * The lens is conservative: a missed SDK call over-counts "unused", so the
+ * factor is modest and drives prioritization, not a hard removal gate.
+ */
+export const UNUSED_MULTIPLIER = 2;
+
 export function scoreFindings(findings: Finding[], weights: Weights = DEFAULT_WEIGHTS): Scored {
   const byCategory: Record<string, number> = {};
   let score = 0;
   for (const f of findings) {
-    const w = weights.category[f.category as RiskCategory] ?? 0;
+    let w = weights.category[f.category as RiskCategory] ?? 0;
+    if (f.unused) w *= UNUSED_MULTIPLIER;
+    // Principal reach: a grant on a policy attached to N principals is reachable
+    // by all N — its blast radius scales with N (PLAN.md §2, "reach").
+    if (f.reachFactor && f.reachFactor > 1) w *= f.reachFactor;
     score += w;
     byCategory[f.category] = (byCategory[f.category] ?? 0) + w;
   }
