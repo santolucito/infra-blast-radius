@@ -177,6 +177,62 @@ const EXAMPLES = {
       },
     },
   },
+
+  'messy-baseline': {
+    title: 'Messy baseline',
+    subtitle: 'an accreted policy where the diff lies — rank two cleanups',
+    dir: 'messy-baseline',
+    noCheckov: true,
+    weightsSlider: false,
+    fixes: { 'fix-A': 'scope DynamoDB, drop the redundant statement', 'fix-B': 'scope s3:* and the all-secrets read' },
+    story:
+      'An analytics-role with five overlapping statements. fix-A deletes a redundant statement ' +
+      '(looks like a big cleanup) but s3:* is still granted by another statement, so s3 stays ' +
+      'broad. fix-B scopes s3 and secrets (cuts more) but a leftover statement still leaks ' +
+      's3:PutBucketPolicy + s3:DeleteObject. You cannot rank them from the diff — only the ' +
+      'effective allowed-action set (what the tool scores) tells the truth. Verdict is a close 1.7×.',
+    graph: {
+      baseline: {
+        nodes: [
+          N('role', 'analytics-role', 'policy', [0.28, 0.5], 'high', '5 statements'),
+          N('s3', 'S3 lake', 'data', [0.78, 0.16], 'high', 's3:* (+overlap)'),
+          N('ddb', 'DynamoDB', 'data', [0.82, 0.38], 'high', 'dynamodb:*'),
+          N('secret', 'secrets', 'data', [0.82, 0.62], 'high', 'ALL secrets'),
+          N('kms', 'KMS', 'data', [0.78, 0.84], 'med', 'Decrypt *'),
+        ],
+        edges: [
+          E('role', 's3', 's3:*', 'high'), E('role', 'ddb', 'dynamodb:*', 'high'),
+          E('role', 'secret', 'GetSecretValue *', 'high'), E('role', 'kms', 'Decrypt *', 'med'),
+        ],
+      },
+      'fix-A': {
+        nodes: [
+          N('role', 'analytics-role', 'policy', [0.28, 0.5], 'high', 's3 still broad'),
+          N('s3', 'S3 lake', 'data', [0.78, 0.16], 'high', 's3:* untouched'),
+          N('ddb', 'DynamoDB', 'data', [0.82, 0.38], 'low', 'scoped'),
+          N('secret', 'secrets', 'data', [0.82, 0.62], 'high', 'ALL secrets'),
+          N('kms', 'KMS', 'data', [0.78, 0.84], 'med', 'Decrypt *'),
+        ],
+        edges: [
+          E('role', 's3', 's3:*', 'high'), E('role', 'ddb', 'GetItem/Query', 'low'),
+          E('role', 'secret', 'GetSecretValue *', 'high'), E('role', 'kms', 'Decrypt *', 'med'),
+        ],
+      },
+      'fix-B': {
+        nodes: [
+          N('role', 'analytics-role', 'policy', [0.28, 0.5], 'med', 'leak below'),
+          N('s3', 'S3 lake', 'data', [0.78, 0.16], 'med', 'leaks PutBucketPolicy'),
+          N('ddb', 'DynamoDB', 'data', [0.82, 0.38], 'high', 'dynamodb:*'),
+          N('secret', 'secrets', 'data', [0.82, 0.62], 'low', '1 secret'),
+          N('kms', 'KMS', 'data', [0.78, 0.84], 'med', 'Decrypt *'),
+        ],
+        edges: [
+          E('role', 's3', 'Get/Put + leak', 'med'), E('role', 'ddb', 'dynamodb:*', 'high'),
+          E('role', 'secret', 'one ARN', 'low'), E('role', 'kms', 'Decrypt *', 'med'),
+        ],
+      },
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------

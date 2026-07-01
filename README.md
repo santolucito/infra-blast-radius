@@ -71,6 +71,7 @@ Reproducible, each with a `build-repo.sh` and expected output:
 | [`tradeoff`](./examples/tradeoff) | tighter IAM vs. an open network — no obvious winner; the verdict is a tunable threat-model choice |
 | [`shared-role`](./examples/shared-role) | dedicated least-privilege role vs. reusing the broad shared role |
 | [`shared-reach`](./examples/shared-reach) | the _same_ grant costs 6× on a role shared by 6 services |
+| [`messy-baseline`](./examples/messy-baseline) | an accreted 5-statement policy where the diff lies — two cleanups that need whole-policy reasoning (shadowing, leaks) |
 
 ```bash
 DEST=$(examples/tradeoff/build-repo.sh)
