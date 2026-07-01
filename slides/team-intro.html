@@ -204,57 +204,42 @@ instance: public_ip = <span class="green">false</span></div>
 
   <!-- 9 -->
   <section class="slide">
-    <h2>fix-A — <span class="green">textbook least privilege</span></h2>
-    <div class="cols">
-      <div class="term"><span class="dim">iam/policy.json</span>
-{ "Effect": "Allow",
-  "Action": [<span class="green">"s3:GetObject"</span>,
-             <span class="green">"s3:PutObject"</span>],
-  "Resource":
-    <span class="green">"arn:aws:s3:::job-data/*"</span> }</div>
-      <div class="term"><span class="dim">infra/net.tf</span>
-security group "job":
-  ingress <span class="red">ALL</span> from <span class="red">0.0.0.0/0</span>
-  <span class="dim"># opened to reach a</span>
-  <span class="dim"># license server</span>
-instance: public_ip = <span class="red">true</span></div>
-    </div>
-    <p style="margin-top:1em">Two scoped actions on one bucket. The IAM diff is <b class="green">gorgeous</b>…
-    but it opened the network.</p>
+    <div class="kicker">The two fixes · side by side</div>
+    <h2>Both cut <code>s3:*</code> — so what does each <span class="accent">trade</span>?</h2>
+    <table>
+      <tr><th style="width:11%"></th>
+          <th>fix-A <span class="dim" style="font-weight:400">· "tight IAM"</span></th>
+          <th>fix-B <span class="dim" style="font-weight:400">· "keep network shut"</span></th></tr>
+      <tr>
+        <th class="a2">IAM</th>
+        <td><span class="green">s3:GetObject, s3:PutObject</span>
+            <span class="dim small">· on job-data/*</span><br>
+            <span class="dim small">2 scoped actions</span></td>
+        <td><span class="green">s3:GetObject, s3:PutObject</span> <span class="amber">＋</span><br>
+            <span class="amber">secretsmanager:GetSecretValue</span><br>
+            <span class="amber">dynamodb:GetItem, dynamodb:PutItem</span><br>
+            <span class="dim small">5 scoped actions — a <b>superset</b> of fix-A</span></td>
+      </tr>
+      <tr>
+        <th class="amber">Network</th>
+        <td><span class="red">opened: SG → 0.0.0.0/0, public IP</span><br>
+            <span class="dim small">reachable from the internet</span></td>
+        <td><span class="green">unchanged — stays private</span><br>
+            <span class="dim small">locked down, as before</span></td>
+      </tr>
+    </table>
+    <p style="margin-top:.9em"><b>Neither is strictly safer.</b> On IAM, fix-B <em>contains</em> fix-A and
+    adds more — it accepts <span class="amber">broader IAM</span> to keep the <span class="green">network shut</span>.
+    fix-A keeps <span class="green">IAM minimal</span> but <span class="red">opens the network</span>. That's the whole tradeoff.</p>
   </section>
 
   <!-- 10 -->
   <section class="slide">
-    <h2>fix-B — <span class="amber">looks scarier</span></h2>
-    <div class="cols">
-      <div class="term"><span class="dim">iam/policy.json</span>
-"s3:GetObject", "s3:PutObject"  <span class="dim">on job-data/*</span>
-<span class="amber">"secretsmanager:GetSecretValue"</span> <span class="dim">on job/license</span>
-<span class="amber">"dynamodb:GetItem","dynamodb:PutItem"</span> <span class="dim">on job-cache</span>
-<span class="dim"># broader — but every action is scoped</span>
-<span class="dim"># to one resource ARN.</span></div>
-      <div class="term"><span class="dim">infra/net.tf</span>
-security group "job":
-  ingress 443 from <span class="green">10.0.0.0/8</span>
-  <span class="dim"># unchanged — still</span>
-  <span class="dim"># locked down.</span>
-instance: public_ip = <span class="green">false</span></div>
-    </div>
-    <p style="margin-top:1em">Holds a secret, touches a database. But the network stays <b class="green">private</b>.</p>
-  </section>
-
-  <!-- 11 -->
-  <section class="slide">
-    <div class="kicker">Before the reveal</div>
-    <h1>Which would <span class="accent">you</span> approve?</h1>
-    <div class="cols" style="margin-top:.4em">
-      <div class="card"><b class="green">fix-A</b><br><span class="small dim">Clean two-line IAM policy.
-      The network change is easy to skim past.</span></div>
-      <div class="card"><b class="amber">fix-B</b><br><span class="small dim">A secret and a database in the diff.
-      Feels like more surface.</span></div>
-    </div>
-    <p style="margin-top:1.2em" class="lead">Most reviewers' eyes pick <b class="green">fix-A</b>.
-    Let's ask the tool.</p>
+    <div class="kicker">Gut check</div>
+    <h1>Which looks <span class="accent">safer</span>?</h1>
+    <p class="lead" style="max-width:36ch">Most reviewers pick <b class="green">fix-A</b> — its IAM is
+    tighter, and "open a security group to reach a license server" <em>sounds</em> routine.</p>
+    <p style="margin-top:1.1em">Hold that instinct. Now ask the tool. →</p>
   </section>
 
   <!-- 12 -->
@@ -334,7 +319,7 @@ node dist/cli.js --repo "$DEST" --base main --ref:A fix-A --ref:B fix-B</div>
     <p class="dim small" style="margin-top:1em">github.com/santolucito/infra-blast-radius &nbsp;·&nbsp; PLAN.md</p>
   </section>
 
-  <div class="foot"><span>Comparative Security Blast Radius</span><span id="count">1 / 16</span></div>
+  <div class="foot"><span>Comparative Security Blast Radius</span><span id="count">1 / 15</span></div>
   <div class="nav"><button id="prev">‹</button><button id="next">›</button></div>
   <div class="hint">← → or space to navigate · F for fullscreen</div>
 </div>
