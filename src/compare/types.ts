@@ -37,6 +37,13 @@ export interface Finding {
    * UNUSED_MULTIPLIER) so a fix that grants unused high-risk actions ranks worse.
    */
   unused?: boolean;
+  /**
+   * Principal reach (P2): how many principals hold this policy. A grant on a role
+   * attached to N principals is reachable by all N, so its blast radius scales
+   * with N. Defaults to 1 (dedicated). NOT part of findingKey — it only
+   * re-weights the score (see score.ts). Set from the CFN attachment graph.
+   */
+  reachFactor?: number;
 }
 
 /** A stable key for set-diffing findings across refs. */

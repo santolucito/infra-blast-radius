@@ -12,6 +12,7 @@ import { extractPolicies } from './policy-extract';
 import { AnalysisResult, Comparison, Finding, Weights } from './types';
 import { AnalysisContext, AnalyzerAdapter } from './adapters/types';
 import { applyUsageLens } from './usage/postprocess';
+import { applyPrincipalReach } from './principals';
 
 const execFileAsync = promisify(execFile);
 
@@ -51,7 +52,10 @@ async function analyzeRef(
     // calls. No-op unless the worktree has a blast-usage.json manifest. Reuses the
     // findings just produced — no second analyzer run.
     const lensed = applyUsageLens(findings, worktree);
-    return { ref, findings: lensed.findings };
+    // Principal reach (P2): scale a policy's findings by how many principals carry
+    // it (from the CFN attachment graph). No-op for dedicated / bare-file policies.
+    const reached = applyPrincipalReach(lensed.findings, policies);
+    return { ref, findings: reached };
   } finally {
     await git(opts.repoDir, ['worktree', 'remove', '--force', worktree]).catch(() => undefined);
     fs.rmSync(worktree, { recursive: true, force: true });

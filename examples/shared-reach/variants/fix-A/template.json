@@ -1,0 +1,30 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "fix-A: grant GetSecretValue via a NEW dedicated policy on one role.",
+  "Resources": {
+    "PlatformAccess": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Roles": ["svc-a", "svc-b", "svc-c", "svc-d", "svc-e", "svc-f"],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": ["logs:CreateLogStream", "logs:PutLogEvents"], "Resource": "*" }
+          ]
+        }
+      }
+    },
+    "ReportingSecretAccess": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "Roles": ["reporting-svc"],
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            { "Effect": "Allow", "Action": "secretsmanager:GetSecretValue", "Resource": "*" }
+          ]
+        }
+      }
+    }
+  }
+}

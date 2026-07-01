@@ -25,6 +25,9 @@ export function scoreFindings(findings: Finding[], weights: Weights = DEFAULT_WE
   for (const f of findings) {
     let w = weights.category[f.category as RiskCategory] ?? 0;
     if (f.unused) w *= UNUSED_MULTIPLIER;
+    // Principal reach: a grant on a policy attached to N principals is reachable
+    // by all N — its blast radius scales with N (PLAN.md §2, "reach").
+    if (f.reachFactor && f.reachFactor > 1) w *= f.reachFactor;
     score += w;
     byCategory[f.category] = (byCategory[f.category] ?? 0) + w;
   }

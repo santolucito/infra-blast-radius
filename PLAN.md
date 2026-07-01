@@ -204,7 +204,11 @@ never just the number.
   3-branch repos: (a) **cross-channel flip** — IAM-only ranks fix-A safest,
   IAM+network ranks fix-B safest (1/3 → 511/93); (b) **integrated** run shows
   Cloudsplaining + Checkov + the unused-grant lens all driving one verdict
-  (fix-B 24× smaller). 47 unit tests passing.
+  (fix-B 24× smaller). Also adds **principal reach**: `reach × sensitivity` now
+  counts how many principals carry a policy (from the CFN attachment graph —
+  `Roles`/`Users`/`Groups`, `ManagedPolicyArns`), so the *same* grant on a role
+  shared by 6 services scores 6× a grant on a dedicated role
+  (`examples/shared-reach`). 52 unit tests passing.
 - **P3 — Webview comparison UX.** Side-by-side graphs, diff highlight (what fix B
   reaches that A doesn't), drill-down to the grants behind the score.
 - **P4 — CI integration.** GitHub Action: post the verdict as a PR comment;
@@ -237,6 +241,11 @@ Each phase is independently useful.
   explicit `blast-usage.json` manifest (plus best-effort SAM inference). Tracing
   which principal runs which code, across managed policies / boundaries / assume-
   role chains, is future work; the manifest makes the human assert the mapping.
+- **Principal reach is static-CFN only.** The attachment count comes from
+  CloudFormation (`Roles`/`Users`/`Groups`, `ManagedPolicyArns`) in the analyzed
+  templates. Cross-stack attachments, Terraform `aws_iam_role_policy_attachment`,
+  and runtime `AttachRolePolicy` are not yet resolved; unknown attachment defaults
+  to a reach of 1 (the safe, non-reducing direction).
 - **Opinionated weights.** Must be tunable and explainable; verdict shows drivers.
 - **AWS-first.** Other clouds deferred.
 - **Same-baseline guarantee.** Both fixes scored against the *same* baseline ref;

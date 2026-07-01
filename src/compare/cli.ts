@@ -94,6 +94,12 @@ function printHuman(cmp: Comparison, names: Map<string, string>): void {
       console.log(`    adds ${realCount} findings (${breadth} new allowed actions)`);
       for (const [cat, n] of interesting) console.log(`      • ${cat}: ${n}`);
       if (unused) console.log(`      • unused grants (granted, never called by linked code): ${unused}`);
+      const reaches = [...new Set(
+        c.diff.added.map((f) => f.reachFactor).filter((n): n is number => !!n && n > 1)
+      )].sort((a, b) => a - b);
+      if (reaches.length) {
+        console.log(`      • shared-role reach: ×${reaches.join(', ×')} (grant lands on multiple principals)`);
+      }
     }
     if (c.diff.removed.length) console.log(`    removes ${c.diff.removed.length} findings`);
     console.log('');
