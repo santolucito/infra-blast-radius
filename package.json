@@ -5,6 +5,26 @@
   "version": "0.1.0",
   "publisher": "infra-blast-radius",
   "license": "MIT",
+  "author": "Mark Santolucito",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/santolucito/infra-blast-radius.git"
+  },
+  "homepage": "https://github.com/santolucito/infra-blast-radius#readme",
+  "bugs": {
+    "url": "https://github.com/santolucito/infra-blast-radius/issues"
+  },
+  "keywords": [
+    "security",
+    "iam",
+    "blast-radius",
+    "cloudformation",
+    "terraform",
+    "aws",
+    "least-privilege",
+    "cloudsplaining",
+    "checkov"
+  ],
   "engines": {
     "vscode": "^1.85.0"
   },
