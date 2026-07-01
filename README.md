@@ -1,115 +1,110 @@
-# Infrastructure Blast Radius
+# Security Blast Radius
 
-A VS Code extension that visualizes and **quantifies** the blast radius of a
-CloudFormation or Terraform change *before* you deploy it. Select a resource and
-see everything that transitively depends on it — and, on demand, how badly each
-dependent is impacted (replace / update / no-op) from a real plan.
+**Compare two infrastructure changes and see which one has the smaller _security_
+blast radius — and why.**
 
-See [`DESIGN.md`](./DESIGN.md) for the full design.
+When you have two ways to fix a security finding — an over-permissioned role, an
+open port — which is safer? `terraform plan` shows both as "1 policy changed";
+security scanners rate one state at a time and never compare two. This tool answers
+the question a reviewer actually has at merge time: **given fix-A and fix-B, which
+grants less access, and what specifically drove the difference?**
 
-## Features
+It does **not** reimplement security analysis. It orchestrates existing analyzers,
+normalizes their output into one model, diffs two git refs, and scores the result.
+The novel layer is the _comparison_ — see [`PLAN.md`](./PLAN.md) for the full design.
 
-- **CloudFormation** (`.yaml` / `.yml` / `.json`): parsed live from the editor
-  buffer. Understands `Ref`, `Fn::GetAtt`, `Fn::Sub` interpolations, and
-  `DependsOn`; filters out parameter/pseudo-parameter refs.
-- **Terraform** (`.tf`): delegates to the `terraform` CLI (`terraform graph`),
-  refreshed on save. Modules are flattened with cross-module edges preserved.
-- **Blast-radius traversal**: cycle-safe; toggle between *dependents* ("what
-  breaks if I change this") and *dependencies* ("what this needs").
-- **Severity**:
-  - *Plan-based* (Terraform): "Compute severity" runs `terraform plan` and colors
-    nodes by real action.
-  - *Edge-weighted estimate* (instant, no plan needed): colors by hard/soft
-    dependency distance. Clearly labeled as an estimate.
+```
+$ blast-compare --repo . --base main --ref:A fix-A --ref:B fix-B
+  analyzers: cloudsplaining, checkov
 
-## Develop
+  A (fix-A)   score 617   (network exposure: 5 · public exposure: 1)
+  B (fix-B)   score 180
+  ✅ Smallest blast radius: B (fix-B) — 3.4× smaller than A
+```
+
+## What it looks at
+
+Each analyzer is optional and used when installed; findings are keyed by
+`source + channel` so they merge into one comparable score without double-counting.
+
+| Analyzer | Channel | What it contributes |
+|---|---|---|
+| [Cloudsplaining](https://github.com/salesforce/cloudsplaining) | `iam` | IAM action risk — priv-esc, data-exfil, perms-mgmt; wildcard/resource aware |
+| [Checkov](https://www.checkov.io/) | `network` | IaC misconfiguration — open SGs, public buckets, missing encryption |
+| granted-vs-used (built in) | `iam` | static AWS-SDK scan flags grants the app code never calls |
+| principal reach (built in) | `iam` | a grant on a role shared by _N_ principals scores _N×_ |
+
+## Quick start
 
 ```bash
+# analyzers (both optional; Cloudsplaining is the core)
+pipx install cloudsplaining checkov
+
 npm install
-npm run compile      # bundle extension + webview (esbuild)
-npm test             # parser + traversal unit tests (plain Node)
+npm run compile          # build dist/cli.js
+npm test                 # 52 unit tests, no external tools required
 ```
 
-Press <kbd>F5</kbd> in VS Code ("Run Extension"), then open
-`examples/cloudformation/network.yaml` (or run `terraform init` in
-`examples/terraform/` first) and run **Visualize Blast Radius** from the command
-palette or the editor title bar.
-
-## Architecture (one screen)
-
-```
-Extension Host (Node)                         Webview (browser)
-  provider detect ─┬─ CFN parser (buffer)      Cytoscape + dagre
-                   └─ TF adapter (terraform)   blast-radius traversal (shared)
-  severity engine (plan / change set)  ⇄ typed postMessage protocol ⇄
-```
-
-- Parsers (`src/parsers`) and traversal (`src/graph`) are pure and `vscode`-free,
-  so they are unit-tested in plain Node.
-- The same traversal code runs in the webview for instant selection feedback.
-
-## Comparative security blast radius (`blast-compare`)
-
-Beyond visualizing one change, the tool compares the **security** blast radius of
-two alternative fixes and tells you which grants less access — see
-[`PLAN.md`](./PLAN.md). It does **not** reimplement security analysis; it
-orchestrates existing analyzers, normalizes their output, diffs two git refs, and
-scores the result. Analyzers (each optional, used when installed):
-
-- **[Cloudsplaining](https://github.com/salesforce/cloudsplaining)** — IAM action
-  risk classification (priv-esc, data-exfil, perms-mgmt, …), the `iam` channel.
-- **[Checkov](https://www.checkov.io/)** — IaC misconfiguration incl. network /
-  public exposure and encryption, the `network` channel.
-- **Granted-vs-used lens** — static AWS-SDK call extraction marks IAM grants the
-  linked application code never invokes (via a `blast-usage.json` manifest); these
-  re-weight the score so a fix that grants *unused* high-risk actions ranks worse.
-
-Findings are keyed by `source`+`channel`, so the analyzers merge into one
-comparable score without double-counting.
+**CLI:**
 
 ```bash
-# one-time: the offline analyzers (both optional; Cloudsplaining is the core)
-pipx install cloudsplaining
-pipx install checkov          # adds the network/misconfig channel
-
-npm run compile
-node dist/cli.js \
-  --repo /path/to/repo --base main \
-  --a fix-broad --b fix-scoped \
-  [--target iam/] [--no-checkov] \
-  [--weights examples/blast-radius.weights.json] [--max-delta 10] [--json]
+node dist/cli.js --repo /path/to/repo --base main --ref:A fix-A --ref:B fix-B \
+  [--target iam/] [--no-checkov] [--weights weights.json] [--max-delta 10] [--json]
 ```
 
-Example output:
-
-```
-  baseline (main): score 1
-  A (fix-broad)   score 2377  (+2376)  · 100 infra-mod, 56 write, 27 perms-mgmt, 2 service-wildcard …
-  B (fix-scoped)  score 2     (+1)
-  ✅ Smallest blast radius: B (fix-scoped) (1188.5× smaller than A)
-```
-
-`terraform plan` rates these two fixes identically (one IAM attachment each); the
-security score does not. Weights are tunable (`--weights`); `--max-delta N` is an
-opt-in CI gate. P1 extracts IAM policies from CloudFormation templates and bare
-`.json` policy files (Terraform `jsonencode`/policy-document HCL is a follow-up).
-
-### Interactive web UI
-
-A local browser front-end visualizes the examples interactively — an infra access
-graph plus a live comparison panel, with every number coming from a real CLI run
-(see [`web/README.md`](./web/README.md)):
+**Interactive web UI** — an infra visualizer + a live comparison panel, every
+number from a real CLI run (see [`web/README.md`](./web/README.md)):
 
 ```bash
-npm run compile && npm run web    # -> http://localhost:4173
+npm run web              # -> http://localhost:4173
 ```
 
-Worked examples live in [`examples/`](./examples): `tradeoff` (cross-channel, no
-obvious winner), `shared-role` (dedicated vs. shared role), and `shared-reach`
-(principal reach — the same grant costs N× on a role shared by N principals).
+## Worked examples
 
-## Status / scope
+Reproducible, each with a `build-repo.sh` and expected output:
 
-MVP. Plan-based severity is Terraform-only; CloudFormation severity (change sets)
-is the next opt-in. Cross-stack `Fn::ImportValue` and remote state are out of
-scope (see `DESIGN.md` §7).
+| [`examples/`](./examples) | The decision |
+|---|---|
+| [`tradeoff`](./examples/tradeoff) | tighter IAM vs. an open network — no obvious winner; the verdict is a tunable threat-model choice |
+| [`shared-role`](./examples/shared-role) | dedicated least-privilege role vs. reusing the broad shared role |
+| [`shared-reach`](./examples/shared-reach) | the _same_ grant costs 6× on a role shared by 6 services |
+
+```bash
+DEST=$(examples/tradeoff/build-repo.sh)
+node dist/cli.js --repo "$DEST" --base main --ref:A fix-A --ref:B fix-B
+```
+
+A slide deck introducing the tool from zero is in
+[`slides/team-intro.html`](./slides/team-intro.html) (open in any browser).
+
+## How it works
+
+```
+git refs: baseline, fix-A, fix-B
+   │  (isolated worktree per ref)
+   ▼
+ ANALYZER ADAPTERS   Cloudsplaining → JSON   Checkov → JSON
+   ▼
+ NORMALIZE → one Finding model  → granted-vs-used lens + principal reach
+   ▼
+ DIFF each fix vs baseline → SCORE (reach × sensitivity, tunable weights) → VERDICT
+```
+
+- `src/compare` — the comparison engine (adapters, normalize, diff, score,
+  orchestrator, CLI). Pure and `vscode`-free; unit-tested in plain Node.
+- `web` — the local web front-end (Node `http`, zero extra deps).
+- Scoring is `reach × sensitivity` with tunable weights; the verdict always shows
+  the drivers, never just the number. Boundaries are documented in `PLAN.md` §8.
+
+## Also in this repo: the dependency-radius visualizer
+
+The engine grew out of a VS Code extension that visualizes the _change_ blast
+radius of a single CloudFormation/Terraform edit (what transitively depends on a
+resource, colored by `terraform plan` severity). It's the substrate the security
+tool was built on; see [`DESIGN.md`](./DESIGN.md). Press <kbd>F5</kbd> in VS Code
+("Run Extension") and run **Visualize Blast Radius** on
+`examples/cloudformation/network.yaml`.
+
+## License
+
+[MIT](./LICENSE)
