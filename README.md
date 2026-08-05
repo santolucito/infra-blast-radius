@@ -72,6 +72,7 @@ Reproducible, each with a `build-repo.sh` and expected output:
 | [`shared-role`](./examples/shared-role) | dedicated least-privilege role vs. reusing the broad shared role |
 | [`shared-reach`](./examples/shared-reach) | the _same_ grant costs 6× on a role shared by 6 services |
 | [`messy-baseline`](./examples/messy-baseline) | an accreted 5-statement policy where the diff lies — two cleanups that need whole-policy reasoning (shadowing, leaks) |
+| [`exposed-bucket`](./examples/exposed-bucket) | a **cross-analyzer feedback edge** flips the verdict: narrow IAM on a public bucket vs. broad IAM on a locked one ([design](./docs/feedback-loops.md)) |
 
 ```bash
 DEST=$(examples/tradeoff/build-repo.sh)

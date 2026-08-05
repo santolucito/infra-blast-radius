@@ -10,6 +10,7 @@ import { CloudsplainingAdapter } from './adapters/cloudsplaining';
 import { CheckovAdapter } from './adapters/checkov';
 import { AnalyzerAdapter } from './adapters/types';
 import { compareRefs } from './orchestrator';
+import { EXPOSURE_MULTIPLIER } from './reachability';
 import { resolveWeights } from './score';
 import { Comparison, Weights } from './types';
 
@@ -23,10 +24,11 @@ interface Args {
   json: boolean;
   maxDelta?: number;
   noCheckov: boolean;
+  noFeedback: boolean;
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { repo: '.', candidates: [], json: false, noCheckov: false };
+  const args: Args = { repo: '.', candidates: [], json: false, noCheckov: false, noFeedback: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => argv[++i];
@@ -38,6 +40,7 @@ function parseArgs(argv: string[]): Args {
       case '--weights': args.weights = next(); break;
       case '--max-delta': args.maxDelta = Number(next()); break;
       case '--no-checkov': args.noCheckov = true; break;
+      case '--no-feedback': args.noFeedback = true; break;
       case '--json': args.json = true; break;
       case '--a': args.candidates.push({ name: 'A', ref: next() }); break;
       case '--b': args.candidates.push({ name: 'B', ref: next() }); break;
@@ -100,6 +103,10 @@ function printHuman(cmp: Comparison, names: Map<string, string>): void {
       if (reaches.length) {
         console.log(`      • shared-role reach: ×${reaches.join(', ×')} (grant lands on multiple principals)`);
       }
+      const exposedN = c.diff.added.filter((f) => !!f.exposureFactor && f.exposureFactor > 1).length;
+      if (exposedN) {
+        console.log(`      • public-reachable: ${exposedN} grants land on a resource Checkov flags public (×${EXPOSURE_MULTIPLIER})`);
+      }
     }
     if (c.diff.removed.length) console.log(`    removes ${c.diff.removed.length} findings`);
     console.log('');
@@ -156,6 +163,7 @@ async function main(): Promise<void> {
     target: args.target,
     adapters,
     weights: loadWeights(args.weights),
+    feedback: !args.noFeedback,
   });
 
   if (args.json) console.log(JSON.stringify(cmp, null, 2));

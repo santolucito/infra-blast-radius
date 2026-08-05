@@ -13,6 +13,7 @@ import { AnalysisResult, Comparison, Finding, Weights } from './types';
 import { AnalysisContext, AnalyzerAdapter } from './adapters/types';
 import { applyUsageLens } from './usage/postprocess';
 import { applyPrincipalReach } from './principals';
+import { applyReachabilityFeedback } from './reachability';
 
 const execFileAsync = promisify(execFile);
 
@@ -23,6 +24,9 @@ export interface CompareOptions {
   target?: string;
   adapters: AnalyzerAdapter[];
   weights: Weights;
+  /** Cross-analyzer feedback edges (edge ①, reachability → IAM). Default on;
+   * set false to score the analyzers purely in parallel (the counterfactual). */
+  feedback?: boolean;
 }
 
 async function git(repoDir: string, args: string[]): Promise<string> {
@@ -55,7 +59,13 @@ async function analyzeRef(
     // Principal reach (P2): scale a policy's findings by how many principals carry
     // it (from the CFN attachment graph). No-op for dedicated / bare-file policies.
     const reached = applyPrincipalReach(lensed.findings, policies);
-    return { ref, findings: reached };
+    // Feedback edge ①: let Checkov's public-exposure verdicts sharpen the IAM
+    // findings whose actions target those same resources — the analyzers stop
+    // running purely in parallel here (docs/feedback-loops.md). No-op unless a
+    // resource is both public (Checkov) and IAM-reachable.
+    const exposed =
+      opts.feedback === false ? reached : applyReachabilityFeedback(reached, policies, worktree);
+    return { ref, findings: exposed };
   } finally {
     await git(opts.repoDir, ['worktree', 'remove', '--force', worktree]).catch(() => undefined);
     fs.rmSync(worktree, { recursive: true, force: true });

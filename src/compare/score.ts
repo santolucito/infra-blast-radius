@@ -28,6 +28,9 @@ export function scoreFindings(findings: Finding[], weights: Weights = DEFAULT_WE
     // Principal reach: a grant on a policy attached to N principals is reachable
     // by all N — its blast radius scales with N (PLAN.md §2, "reach").
     if (f.reachFactor && f.reachFactor > 1) w *= f.reachFactor;
+    // Reachability feedback (edge ①): a grant whose target resource Checkov
+    // flagged public is a live path, not a latent one (docs/feedback-loops.md).
+    if (f.exposureFactor && f.exposureFactor > 1) w *= f.exposureFactor;
     score += w;
     byCategory[f.category] = (byCategory[f.category] ?? 0) + w;
   }
