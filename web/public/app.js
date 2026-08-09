@@ -7,7 +7,7 @@ const SVGNS = 'http://www.w3.org/2000/svg';
 const RISK = { low: '#58a6ff', med: '#d29922', high: '#f85149' };
 const NETWORK_CATS = ['network_exposure', 'public_exposure', 'encryption', 'misconfiguration'];
 
-const state = { examples: [], cur: null, fix: 'fix-A', cmp: null, mult: 1 };
+const state = { examples: [], cur: null, fix: 'fix-A', cmp: null, mult: 1, feedback: true };
 
 const $ = (id) => document.getElementById(id);
 const el = (tag, attrs = {}, kids = []) => {
@@ -38,7 +38,7 @@ async function compare() {
   const ex = state.cur;
   status(`running blast-compare on “${ex.title}” …`, 'run');
   try {
-    const body = { example: ex.id };
+    const body = { example: ex.id, feedback: state.feedback };
     const r = await fetch('/api/compare', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
@@ -68,6 +68,7 @@ function renderTabs() {
 function select(id, wantFix) {
   state.cur = state.examples.find((e) => e.id === id);
   state.mult = 1;
+  state.feedback = true;
   if (location.hash.slice(1) !== id) location.hash = id;
   const fixes = Object.keys(state.cur.graph);
   state.fix = wantFix && fixes.includes(wantFix) ? wantFix : fixes.includes('fix-A') ? 'fix-A' : fixes[0];
@@ -214,6 +215,16 @@ function renderPanel() {
       <label><span style="color:var(--dim)">ignore network</span><span style="color:var(--dim)">paranoid</span></label></div>`;
   }
 
+  if (state.cur.feedbackToggle) {
+    html += `<div class="toggle">
+      <label class="tglrow"><input id="fbtoggle" type="checkbox" ${state.feedback ? 'checked' : ''} />
+        <span>cross-analyzer feedback <b>(edge ①: reachability → IAM)</b></span></label>
+      <div class="tglhint">${state.feedback
+        ? 'ON — Checkov’s public-exposure verdict amplifies the IAM grants that land on that bucket.'
+        : 'OFF — analyzers run in parallel and their findings are summed independently.'}</div>
+    </div>`;
+  }
+
   for (const row of rows) {
     const isWin = row.ref === winner.ref, isSel = row.ref === state.fix;
     const col = isWin ? 'var(--green)' : 'var(--red)';
@@ -241,6 +252,8 @@ function renderPanel() {
   });
   const sl = $('mslider');
   if (sl) sl.oninput = () => { state.mult = parseFloat(sl.value); $('mval').textContent = '×' + state.mult.toFixed(1); renderPanel(); };
+  const fb = $('fbtoggle');
+  if (fb) fb.onchange = () => { state.feedback = fb.checked; compare(); };
 }
 
 load();

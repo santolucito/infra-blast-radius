@@ -1,0 +1,14 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Lake",
+      "Effect": "Allow",
+      "Action": ["s3:Get*", "s3:Put*", "s3:List*", "s3:Delete*"],
+      "Resource": [
+        "arn:aws:s3:::pipeline-lake",
+        "arn:aws:s3:::pipeline-lake/*"
+      ]
+    }
+  ]
+}

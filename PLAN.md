@@ -209,7 +209,20 @@ never just the number.
   counts how many principals carry a policy (from the CFN attachment graph —
   `Roles`/`Users`/`Groups`, `ManagedPolicyArns`), so the *same* grant on a role
   shared by 6 services scores 6× a grant on a dedicated role
-  (`examples/shared-reach`). 52 unit tests passing.
+  (`examples/shared-reach`). 62 unit tests passing.
+- **P2.5 — Analyzer feedback edges (started). 🚧.** Until now analyzers ran in
+  parallel and we summed their findings. The first **feedback line** lets one
+  analyzer's output sharpen another's (inspired by Velvet's multi-modal
+  verification; see [`docs/feedback-loops.md`](./docs/feedback-loops.md)). Edge ①
+  (**reachability → IAM**): a Checkov `public_exposure` verdict on a resource
+  multiplies the weight of the cloudsplaining IAM grants whose actions target that
+  same resource (`EXPOSURE_MULTIPLIER`, 3×), because a grant on a world-reachable
+  bucket is a live path, not a latent one. The hard part is resource identity
+  across tools (Terraform logical id vs. IAM ARN), resolved for S3 as the
+  extensible seam. Proven on `examples/exposed-bucket`: the verdict **flips**
+  (`--no-feedback` ranks fix-A safest at 1.2×; with the edge, fix-B is safest at
+  1.7×). Toggleable via `--no-feedback` / the web UI checkbox. Remaining edges:
+  ② usage → IAM re-parameterization, ③ effective-set → shadow diagnostic.
 - **P3 — Webview comparison UX.** Side-by-side graphs, diff highlight (what fix B
   reaches that A doesn't), drill-down to the grants behind the score.
 - **P4 — CI integration.** GitHub Action: post the verdict as a PR comment;

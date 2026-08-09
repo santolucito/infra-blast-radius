@@ -44,6 +44,14 @@ export interface Finding {
    * re-weights the score (see score.ts). Set from the CFN attachment graph.
    */
   reachFactor?: number;
+  /**
+   * Reachability feedback (edge ①, docs/feedback-loops.md): set on an IAM finding
+   * whose action targets a resource Checkov flagged publicly reachable. A grant on
+   * a public resource is a live exfiltration/tamper path, so its weight is scaled
+   * by this factor (see score.ts, EXPOSURE_MULTIPLIER). This is one analyzer's
+   * output sharpening another's — not a standalone finding. NOT part of findingKey.
+   */
+  exposureFactor?: number;
 }
 
 /** A stable key for set-diffing findings across refs. */

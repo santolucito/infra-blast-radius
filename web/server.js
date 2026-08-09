@@ -233,6 +233,67 @@ const EXAMPLES = {
       },
     },
   },
+
+  'exposed-bucket': {
+    title: 'A feedback edge flips the verdict',
+    subtitle: 'narrow IAM on a public bucket, or broad IAM on a locked one?',
+    dir: 'exposed-bucket',
+    noCheckov: false,
+    weightsSlider: false,
+    feedbackToggle: true, // re-run with/without the reachability→IAM feedback edge
+    fixes: {
+      'fix-A': 'narrow the IAM policy (bucket stays public)',
+      'fix-B': 'lock the bucket down (IAM stays broad)',
+    },
+    story:
+      'An analytics role has s3:* on a data lake with no public-access block. fix-A narrows ' +
+      'the policy to an explicit Get/Put/List/Delete set but leaves the bucket public. fix-B ' +
+      'keeps s3:* but locks the bucket. Toggle the feedback edge: run the analyzers in parallel ' +
+      'and fix-A wins (narrower policy); let Checkov’s public-exposure verdict sharpen the ' +
+      'IAM findings and the verdict flips — fix-A’s ~135 grants all land on a bucket the ' +
+      'whole internet can reach.',
+    graph: {
+      baseline: {
+        nodes: [
+          N('role', 'analytics role', 'principal', [0.24, 0.5]),
+          N('pol', 'IAM policy', 'policy', [0.5, 0.5], 'high', 's3:*'),
+          N('lake', 'data lake', 'data', [0.8, 0.5], 'high', 'public'),
+          N('inet', 'internet', 'network', [0.24, 0.9], 'high'),
+        ],
+        edges: [
+          E('role', 'pol'),
+          E('pol', 'lake', 's3:*', 'high'),
+          E('inet', 'lake', 'public read/write', 'high'),
+        ],
+      },
+      'fix-A': {
+        nodes: [
+          N('role', 'analytics role', 'principal', [0.24, 0.5]),
+          N('pol', 'IAM policy', 'policy', [0.5, 0.5], 'med', 'Get/Put/List/Delete*'),
+          N('lake', 'data lake', 'data', [0.8, 0.5], 'high', 'STILL public'),
+          N('inet', 'internet', 'network', [0.24, 0.9], 'high'),
+        ],
+        edges: [
+          E('role', 'pol'),
+          E('pol', 'lake', '~135 grants', 'high'),
+          E('inet', 'lake', 'OPEN', 'high'),
+        ],
+      },
+      'fix-B': {
+        nodes: [
+          N('role', 'analytics role', 'principal', [0.24, 0.5]),
+          N('pol', 'IAM policy', 'policy', [0.5, 0.5], 'high', 's3:*'),
+          N('lake', 'data lake', 'data', [0.8, 0.5], 'low', 'locked'),
+          N('inet', 'internet', 'network', [0.24, 0.9], 'low'),
+        ],
+        edges: [
+          E('role', 'pol'),
+          E('pol', 'lake', 's3:*', 'med'),
+          E('inet', 'lake', 'blocked', 'low', true),
+        ],
+      },
+    },
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -260,6 +321,7 @@ function runCompare(ex, opts, cb) {
   }
   const args = [CLI, '--repo', repo, '--base', 'main', '--ref:A', 'fix-A', '--ref:B', 'fix-B', '--json'];
   if (cfg.noCheckov) args.push('--no-checkov');
+  if (opts.feedback === false) args.push('--no-feedback');
   let weightsFile;
   if (opts.weights) {
     weightsFile = path.join(os.tmpdir(), `blast-web-w-${ex}.json`);
@@ -304,7 +366,7 @@ const server = http.createServer((req, res) => {
   if (url === '/api/examples') {
     const list = Object.entries(EXAMPLES).map(([id, e]) => ({
       id, title: e.title, subtitle: e.subtitle, story: e.story,
-      fixes: e.fixes, weightsSlider: e.weightsSlider, graph: e.graph,
+      fixes: e.fixes, weightsSlider: e.weightsSlider, feedbackToggle: e.feedbackToggle, graph: e.graph,
     }));
     return sendJson(res, 200, list);
   }
@@ -322,7 +384,7 @@ const server = http.createServer((req, res) => {
         weights = { category: { network_exposure: w, public_exposure: w, encryption: 2, misconfiguration: 1 } };
       }
       const t0 = Date.now();
-      runCompare(opts.example, { weights }, (err, comparison) => {
+      runCompare(opts.example, { weights, feedback: opts.feedback }, (err, comparison) => {
         if (err) return sendJson(res, 500, { error: err.message });
         sendJson(res, 200, { comparison, tookMs: Date.now() - t0 });
       });

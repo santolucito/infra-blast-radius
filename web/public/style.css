@@ -62,6 +62,11 @@ svg#graph{width:100%;height:100%;display:block}
 .slider{margin:6px 0 16px}
 .slider label{font-size:12px;color:var(--dim);display:flex;justify-content:space-between}
 .slider input{width:100%;accent-color:var(--accent)}
+.toggle{margin:4px 0 16px;background:var(--panel);border:1px solid var(--edge);border-radius:10px;padding:11px 13px}
+.tglrow{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--fg);cursor:pointer}
+.tglrow input{accent-color:var(--accent);width:15px;height:15px}
+.tglrow b{color:var(--accent);font-weight:600}
+.tglhint{color:var(--dim);font-size:11.5px;line-height:1.45;margin-top:7px;font-family:var(--mono)}
 .status{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
   background:var(--panel);border:1px solid var(--edge);border-radius:20px;padding:7px 16px;
   font-family:var(--mono);font-size:12px;color:var(--dim);opacity:0;transition:opacity .2s}
