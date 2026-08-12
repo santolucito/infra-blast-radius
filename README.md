@@ -116,6 +116,12 @@ across two refs and returns a ranked verdict with the drivers, not a picture. (T
 dependency visualizer below is in that same descriptive category — which is exactly
 why the product is the comparative security layer built on top of it.)
 
+For a rigorous prior-art scan — where the ideas here overlap with CNAPP "toxic
+combinations" (Wiz, SCC), pre-deploy attack-path analysis, and AWS Access
+Analyzer's differential IAM checks, and where the genuinely underserved niche is
+(*choosing between two candidate fixes*, not gating one) — see
+[`docs/prior-art.md`](./docs/prior-art.md).
+
 ## Also in this repo: the dependency-radius visualizer
 
 The engine grew out of a VS Code extension that visualizes the _change_ blast
